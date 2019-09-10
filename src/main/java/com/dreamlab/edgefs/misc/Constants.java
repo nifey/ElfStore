@@ -122,9 +122,15 @@ public final class Constants {
 	public static int DEFAULT_REPLICA_CACHING_ENABLE = 0;
 	
 	public static String REPLICA_CACHING_TIME = "replica.caching.time";
-	
+
+	public static int ERASURE_CODE_N = 9;
+
+	public static int ERASURE_CODE_K = 6;
+
+	public static int ERASURE_CODE_SCHEME = 1;
+
 	public static int DEFAULT_REPLICA_CACHING_TIME = 40;
-	
+
 	public static long interpretByteAsLong(byte b) {
 		int diskSpace = (int) b;
 

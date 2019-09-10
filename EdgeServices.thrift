@@ -89,6 +89,8 @@ struct Metadata {
 	7: optional string properties;
   	8: optional string compFormat;
   	9: optional i64 uncompSize;
+	10: required bool isErasureCoded;
+	11: optional i16 shardIndex;
 }
 
 struct EdgeInfoData {

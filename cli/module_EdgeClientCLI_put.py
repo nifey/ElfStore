@@ -325,7 +325,7 @@ class EdgeClient:
 
 
 
-    def writeRequestToFog(self,microbatchID,streamId,filePath, data, fogReplicaMap, yetAnotherMap,sizeChoice,setLease,metaKeyValueMap):
+    def writeRequestToFog(self,microbatchID,streamId,filePath, data, fogReplicaMap, yetAnotherMap,sizeChoice,setLease,erasureCode,metaKeyValueMap):
 
         #/home/swamiji/eclipse-workspace/edgefs_Europar/EdgeServer/Audio_02_06_2019_20_57_02.mp3
 
@@ -379,13 +379,46 @@ class EdgeClient:
         metaData.properties = json.dumps(additional_prop)
         metaData.compFormat = COMP_FORMAT
         metaData.uncompSize = len(data)
-
+        metaData.isErasureCoded = False
 
         #print EDGE_ID,EDGE_IP,EDGE_PORT,EDGE_RELIABILITY,encodedSpace
         #edgeInfo = EdgeInfoData(EDGE_ID,EDGE_IP,EDGE_PORT,EDGE_RELIABILITY,encodedSpace)
         #print "here also ",edgeInfo
         print("encodedSpace ",encodedSpace)
 
+        if erasureCode == "1":
+            metaData.isErasureCoded = True
+
+            self.renew_lease(metaData.streamId, metaData.clientId, metaData.sessionSecret, EXPECTED_LEASE, ESTIMATE_PUT_NEXT, metaData.mbId,setLease)
+
+            timestamp_record_getWrite = str(microbatchID)  +   ","  +   str(-100) +  ", local, "  + "writeErasureCoded ,starttime = " + repr(time.time())  + ","
+            result = myClient.writeErasureCoded(metaData, data)
+            timestamp_record_getWrite = timestamp_record_getWrite +"endtime = " + repr(time.time()) +" , " + str(sizeChoice) + '\n'
+
+            self.closeSocket(transport)
+
+            myLogs = open(BASE_LOG+ 'logs.txt','a')
+            myLogs.write(timestamp_record_getWrite)
+            myLogs.close()
+
+            response = self.increment_block_count(metaData,setLease)
+            if response.code == -1:
+                #this blockId is already written
+                #In our designed experiment, different clients are writing to different regions so this
+                #issue will not occur. However this is kept to indicate that such a scenario can occur
+                #with concurrent clients
+                print("BlockId : " + str(microbatchID) + " is already written, failing the write")
+                return -1
+            elif response.code == -2:
+                #lease expired
+                print("Lease expired, should renew the lease before trying again")
+                return -2
+            elif response.code == -3:
+                #client does not hold the lock
+                print("Client does not hold the lock, should open the stream before writing")
+                return -3
+            else:
+                return response.code
 
         timestamp_record_getWrite = str(microbatchID)  +   ","  +   str(-100) +  ", local, "  + "getWriteLocations ,starttime = " + repr(time.time())  + ","
         #result = myClient.getWriteLocations(encodedSpace,metaData,blackListedFogs,edgeInfo) #datalength,
@@ -593,7 +626,7 @@ class EdgeClient:
         myLogs.write(timestamp_record)
         myLogs.close()
 
-def put(path,streamId,start,metadataLocation,fogIp,fogPort,edgeId,clientId,splitChoice,setLease,leaseDuration,compFormat,verbose = False):
+def put(path,streamId,start,metadataLocation,fogIp,fogPort,edgeId,clientId,splitChoice,setLease,erasureCode,leaseDuration,compFormat,verbose = False):
     myEdge = EdgeClient()
 
     global PATH
@@ -657,10 +690,10 @@ def put(path,streamId,start,metadataLocation,fogIp,fogPort,edgeId,clientId,split
             newFilePath = ""
 
             if verbose == True :
-                response = myEdge.writeRequestToFog(START, STREAM_ID, newFilePath, byteArray[0], fogReplicaMap, yetAnotherMap, fileSizeMB,setLease,metaKeyValueMap)
+                response = myEdge.writeRequestToFog(START, STREAM_ID, newFilePath, byteArray[0], fogReplicaMap, yetAnotherMap, fileSizeMB,setLease,erasureCode,metaKeyValueMap)
             else:
                 with nostdout():
-                    response = myEdge.writeRequestToFog(START, STREAM_ID, newFilePath, byteArray[0], fogReplicaMap, yetAnotherMap, fileSizeMB,setLease,metaKeyValueMap)
+                    response = myEdge.writeRequestToFog(START, STREAM_ID, newFilePath, byteArray[0], fogReplicaMap, yetAnotherMap, fileSizeMB,setLease,erasureCode,metaKeyValueMap)
                 sys.stdout = sys.__stdout__
 
             if response == 1:
@@ -688,11 +721,11 @@ def put(path,streamId,start,metadataLocation,fogIp,fogPort,edgeId,clientId,split
                 fileSizeMB = len(byteArray[i]) / 10000000 ## in MB
 
                 if verbose == True :
-                    response = myEdge.writeRequestToFog(START, STREAM_ID, newFilePath, byteArray[i], fogReplicaMap, yetAnotherMap, fileSizeMB,setLease,metaKeyValueMap)
+                    response = myEdge.writeRequestToFog(START, STREAM_ID, newFilePath, byteArray[i], fogReplicaMap, yetAnotherMap, fileSizeMB,setLease,erasureCode,metaKeyValueMap)
                     START = START + 1
                 else:
                     with nostdout():
-                        response = myEdge.writeRequestToFog(START, STREAM_ID, newFilePath, byteArray[i], fogReplicaMap, yetAnotherMap, fileSizeMB,setLease,metaKeyValueMap)
+                        response = myEdge.writeRequestToFog(START, STREAM_ID, newFilePath, byteArray[i], fogReplicaMap, yetAnotherMap, fileSizeMB,setLease,erasureCode,metaKeyValueMap)
                         START = START + 1
                     sys.stdout = sys.__stdout__
             if response == 1:
@@ -726,11 +759,11 @@ def put(path,streamId,start,metadataLocation,fogIp,fogPort,edgeId,clientId,split
                 fileSizeMB = len(byteArray[i]) / 10000000 ## in MB
 
                 if verbose == True :
-                    response = myEdge.writeRequestToFog(START, STREAM_ID, newFilePath, byteArray[i], fogReplicaMap, yetAnotherMap, fileSizeMB,setLease,metaKeyValueMap)
+                    response = myEdge.writeRequestToFog(START, STREAM_ID, newFilePath, byteArray[i], fogReplicaMap, yetAnotherMap, fileSizeMB,setLease,erasureCode,metaKeyValueMap)
                     START = START + 1
                 else:
                     with nostdout():
-                        response = myEdge.writeRequestToFog(START, STREAM_ID, newFilePath, byteArray[i], fogReplicaMap, yetAnotherMap, fileSizeMB,setLease,metaKeyValueMap)
+                        response = myEdge.writeRequestToFog(START, STREAM_ID, newFilePath, byteArray[i], fogReplicaMap, yetAnotherMap, fileSizeMB,setLease,erasureCode,metaKeyValueMap)
                         START = START + 1
                     sys.stdout = sys.__stdout__
             if response == 1:
@@ -761,11 +794,11 @@ def put(path,streamId,start,metadataLocation,fogIp,fogPort,edgeId,clientId,split
                 fileSizeMB = len(byteArray[i]) / 10000000 ## in MB
 
                 if verbose == True :
-                    response = myEdge.writeRequestToFog(START, STREAM_ID, newFilePath, byteArray[i], fogReplicaMap, yetAnotherMap, fileSizeMB,setLease,metaKeyValueMap)
+                    response = myEdge.writeRequestToFog(START, STREAM_ID, newFilePath, byteArray[i], fogReplicaMap, yetAnotherMap, fileSizeMB,setLease,erasureCode,metaKeyValueMap)
                     START = START + 1
                 else:
                     with nostdout():
-                        response = myEdge.writeRequestToFog(START, STREAM_ID, newFilePath, byteArray[i], fogReplicaMap, yetAnotherMap, fileSizeMB,setLease,metaKeyValueMap)
+                        response = myEdge.writeRequestToFog(START, STREAM_ID, newFilePath, byteArray[i], fogReplicaMap, yetAnotherMap, fileSizeMB,setLease,erasureCode,metaKeyValueMap)
                         START = START + 1
                     sys.stdout = sys.__stdout__
             if response == 1:

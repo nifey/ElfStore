@@ -112,10 +112,12 @@ class Metadata(object):
      - properties
      - compFormat
      - uncompSize
+     - isErasureCoded
+     - shardIndex
     """
 
 
-    def __init__(self, clientId=None, sessionSecret=None, streamId=None, mbId=None, timestamp=None, checksum=None, properties=None, compFormat=None, uncompSize=None,):
+    def __init__(self, clientId=None, sessionSecret=None, streamId=None, mbId=None, timestamp=None, checksum=None, properties=None, compFormat=None, uncompSize=None, isErasureCoded=None, shardIndex=None,):
         self.clientId = clientId
         self.sessionSecret = sessionSecret
         self.streamId = streamId
@@ -125,6 +127,8 @@ class Metadata(object):
         self.properties = properties
         self.compFormat = compFormat
         self.uncompSize = uncompSize
+        self.isErasureCoded = isErasureCoded
+        self.shardIndex = shardIndex
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -180,6 +184,16 @@ class Metadata(object):
                     self.uncompSize = iprot.readI64()
                 else:
                     iprot.skip(ftype)
+            elif fid == 10:
+                if ftype == TType.BOOL:
+                    self.isErasureCoded = iprot.readBool()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 11:
+                if ftype == TType.I16:
+                    self.shardIndex = iprot.readI16()
+                else:
+                    iprot.skip(ftype)
             else:
                 iprot.skip(ftype)
             iprot.readFieldEnd()
@@ -226,6 +240,14 @@ class Metadata(object):
             oprot.writeFieldBegin('uncompSize', TType.I64, 9)
             oprot.writeI64(self.uncompSize)
             oprot.writeFieldEnd()
+        if self.isErasureCoded is not None:
+            oprot.writeFieldBegin('isErasureCoded', TType.BOOL, 10)
+            oprot.writeBool(self.isErasureCoded)
+            oprot.writeFieldEnd()
+        if self.shardIndex is not None:
+            oprot.writeFieldBegin('shardIndex', TType.I16, 11)
+            oprot.writeI16(self.shardIndex)
+            oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
 
@@ -240,6 +262,8 @@ class Metadata(object):
             raise TProtocolException(message='Required field mbId is unset!')
         if self.timestamp is None:
             raise TProtocolException(message='Required field timestamp is unset!')
+        if self.isErasureCoded is None:
+            raise TProtocolException(message='Required field isErasureCoded is unset!')
         return
 
     def __repr__(self):
@@ -624,6 +648,8 @@ Metadata.thrift_spec = (
     (7, TType.STRING, 'properties', 'UTF8', None, ),  # 7
     (8, TType.STRING, 'compFormat', 'UTF8', None, ),  # 8
     (9, TType.I64, 'uncompSize', None, None, ),  # 9
+    (10, TType.BOOL, 'isErasureCoded', None, None, ),  # 10
+    (11, TType.I16, 'shardIndex', None, None, ),  # 11
 )
 all_structs.append(EdgeInfoData)
 EdgeInfoData.thrift_spec = (

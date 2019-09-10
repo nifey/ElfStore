@@ -69,16 +69,19 @@ class elfsCLI(Cmd):
 
         splitChoice = str(0)
         setLease = str(0)
+        erasureCode = str(0)
 
         if tokens.singleBlock == True:
             splitChoice = str(1);
         if tokens.setLease == True:
             setLease = str(1)
+        if tokens.erasureCode == True:
+            erasureCode = str(1)
 
         if tokens.v == True:
-            module_EdgeClientCLI_put.put(tokens.path,tokens.streamId,tokens.start,tokens.metadata, tokens.fogIp,tokens.fogPort,tokens.edgeId,tokens.clientId,splitChoice,setLease,tokens.duration,tokens.comp,True)
+            module_EdgeClientCLI_put.put(tokens.path,tokens.streamId,tokens.start,tokens.metadata, tokens.fogIp,tokens.fogPort,tokens.edgeId,tokens.clientId,splitChoice,setLease,erasureCode,tokens.duration,tokens.comp,True)
         else:
-            module_EdgeClientCLI_put.put(tokens.path,tokens.streamId,tokens.start,tokens.metadata, tokens.fogIp,tokens.fogPort,tokens.edgeId,tokens.clientId,splitChoice,setLease,tokens.duration,tokens.comp)
+            module_EdgeClientCLI_put.put(tokens.path,tokens.streamId,tokens.start,tokens.metadata, tokens.fogIp,tokens.fogPort,tokens.edgeId,tokens.clientId,splitChoice,setLease,erasureCode,tokens.duration,tokens.comp)
 
 
     def do_get(self,args):
@@ -289,6 +292,7 @@ if __name__ == '__main__':
     put_parser.add_argument("--clientId", default = CLIENT_ID)
     put_parser.add_argument("--singleBlock", action ="store_true")
     put_parser.add_argument("--setLease", action ="store_true")
+    put_parser.add_argument("--erasureCode", action ="store_true")
     put_parser.add_argument("--duration",default=str(0))
     put_parser.add_argument("--comp",default=COMP_FORMAT)
     put_parser.add_argument("--v","--verbose", action ="store_true")

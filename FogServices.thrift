@@ -289,6 +289,8 @@ struct Metadata {
 	7: optional string properties;
 	8: optional string compFormat;
 	9: optional i64 uncompSize;
+	10: required bool isErasureCoded;
+	11: optional i16 shardIndex;
 }
 
 struct ReadResponse {
@@ -436,6 +438,9 @@ service FogService {
 
 	//byte write(1:Metadata mbMetadata, 2:binary data, 3:WritePreference preference);
 	WriteResponse write(1:Metadata mbMetadata, 2:binary data, 3:WritePreference preference);
+
+	//Performs erasure coding on the block and places shards to satisfy stream relibaility
+	WriteResponse writeErasureCoded(1:Metadata mbMetadata, 2:binary data);
 
 	// does a test and set tupe of thing, returns the same set of locations as done previously
 	list<NodeInfoData> writeNext(1: string sessionId, 2: Metadata mbData, 3: byte dataLength);

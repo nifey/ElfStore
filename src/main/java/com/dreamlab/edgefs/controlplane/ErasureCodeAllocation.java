@@ -18,17 +18,20 @@ public class ErasureCodeAllocation {
     private double requiredReliability;
     private Map<Short, FogStats> globalInfo;
     private boolean isFeasible = false;
+    private int scheme;
 
     //For each corresponding fog we return the number of edges to allocate as a map with HH or HL as the key and the number of edges assigned in that quadrant as the value
     private Map<Short, Map<String, Integer>> selectedFogs;
 
-    public ErasureCodeAllocation(int n, int k, double requiredReliability, long length, Map<Short, FogStats> globalInfo){
+    public ErasureCodeAllocation(int n, int k, double requiredReliability, long length, Map<Short, FogStats> globalInfo, int scheme){
         this.n = n;
         this.m = n-k;
         this.requiredReliability = requiredReliability;
         this.shardSize = length/k;
         this.globalInfo = globalInfo;
+        this.scheme = scheme;
         this.selectedFogs = new HashMap<Short, Map<String, Integer>>();
+        LOGGER.info("Initialized with N ="+n+" K ="+k+" required reliability="+requiredReliability+ " scheme="+scheme+ " shardSize="+shardSize+ " globalInfo="+globalInfo);
     }
 
     private void printCalculationMatrix(double[][] calculationMatrix){
@@ -75,6 +78,14 @@ public class ErasureCodeAllocation {
 
     // This function returns false if no subsets of reliabilities satisfy the reliability constraint
     public boolean selectFogsForPlacement(){
+        switch(this.scheme){
+            case 1:
+                return this.scheme1();
+        }
+        return false;
+    }
+
+    private boolean scheme1(){
         //Sorting fogs based on median reliability
         List<Short> fogReliabilityOrder = new ArrayList<Short>(globalInfo.keySet());
         fogReliabilityOrder.sort((o1, o2) -> globalInfo.get(o1).getMedianReliability() - globalInfo.get(o2).getMedianReliability());
@@ -112,6 +123,7 @@ public class ErasureCodeAllocation {
                 count++;
             }
             if(countSelected==0) {
+                //fixme setting fogUsed logic
                 fogUsed[currentFogIndex] = true;
             } else {
                 allocMap.put("HH", allocMap.get("HH") - countSelected);
@@ -120,8 +132,48 @@ public class ErasureCodeAllocation {
             currentFogIndex++;
         }
         if(count<this.n){
-            LOGGER.info("Not enough fogs available to place N erasure coded blocks");
-            return false;
+            //If not enough edges are present try allocating edges from HL
+            currentFogIndex = 0;
+            while(count<this.n && currentFogIndex<fogReliabilityOrder.size()){
+                currentFogStats = globalInfo.get(fogReliabilityOrder.get(currentFogIndex));
+                if(currentFogStats.getMedianStorage()<this.shardSize){
+                    currentFogIndex++;
+                    continue;
+                }
+                //Finding how many edges are already assigned
+                countSelected = 0;
+                Map<String, Integer> allocMap = selectedFogs.get(fogReliabilityOrder.get(currentFogIndex));
+                if(allocMap == null){
+                    allocMap = new HashMap<String, Integer>();
+                } else {
+                    for (String s : allocMap.keySet()) {
+                        countSelected += allocMap.get(s);
+                    }
+                }
+                countSelected = Math.min(currentFogStats.getB(), this.m - countSelected);
+                //We take min reliability value because the edges are chosen from HL
+                currentFogReliability = currentFogStats.getMinReliability();
+                allocMap.put("HL", allocMap.getOrDefault("HL", 0) + countSelected);
+                this.selectedFogs.put(fogReliabilityOrder.get(currentFogIndex), allocMap);
+                for(; countSelected>0 && count<this.n ; countSelected--){
+                    reliabilities[count] = currentFogReliability/100;
+                    fogAssigned[count] = currentFogIndex;
+                    count++;
+                }
+                //fixme setting fogUsed logic
+                if(countSelected==0) {
+                    fogUsed[currentFogIndex] = true;
+                } else {
+                    allocMap.put("HL", allocMap.get("HL") - countSelected);
+                    this.selectedFogs.put(fogReliabilityOrder.get(currentFogIndex), allocMap);
+                }
+                currentFogIndex++;
+            }
+
+            if(count<this.n) {
+                LOGGER.info("Not enough edges available to place N erasure coded blocks");
+                return false;
+            }
         }
 
         //Check reliability and replace edge reliabilities if reliability is not met
@@ -131,11 +183,11 @@ public class ErasureCodeAllocation {
         Integer removeIndex = this.n-1;
         while(!isFeasible) {
             currentReliability = this.calculateReliability(reliabilities);
-            System.out.println(selectedFogs);
+            LOGGER.info(selectedFogs.toString());
             for(int i=0; i<this.n; i++) {
-                System.out.print(reliabilities[i]+"->"+fogAssigned[i]+" ");
+                LOGGER.info(reliabilities[i]+"->"+fogAssigned[i]+" ");
             }
-            System.out.println("\nCalculated reliability: "+ currentReliability);
+            LOGGER.info("Calculated reliability: "+ currentReliability);
             if(currentReliability > this.achievedReliability){
                 this.setAchievedReliability(currentReliability);
             }
@@ -163,7 +215,7 @@ public class ErasureCodeAllocation {
                         countSelected += allocMap.get(s);
                     }
                 }
-                if(countSelected<this.m && currentFogStats.getB()>0){
+                if(countSelected<this.m && ((!allocMap.containsKey("HL") && currentFogStats.getB()>0) || (allocMap.containsKey("HL") && (currentFogStats.getB() - allocMap.get("HL"))>0))){
                     if(removeIndex<0){
                         return false;
                     }
@@ -193,8 +245,7 @@ public class ErasureCodeAllocation {
                 }
             }
         }
-
-        return this.isFeasible;
+        return true;
     }
 
     public Map<Short, Map<String, Integer>> getSelectedFogs(){return this.selectedFogs;}
@@ -217,7 +268,7 @@ public class ErasureCodeAllocation {
         fogStatsMap.put(id3, fs3);
         fogStatsMap.put(id4, fs4);
         fogStatsMap.put(id5, fs5);
-        ErasureCodeAllocation eca = new ErasureCodeAllocation(9, 6, 0.75, 123 ,fogStatsMap);
+        ErasureCodeAllocation eca = new ErasureCodeAllocation(9, 6, 0.75, 123 ,fogStatsMap, 1);
         eca.selectFogsForPlacement();
     }
 }
