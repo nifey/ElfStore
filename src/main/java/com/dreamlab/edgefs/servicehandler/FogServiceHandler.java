@@ -26,6 +26,9 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import com.dreamlab.edgefs.controlplane.CoarseGrainedStats;
 import com.dreamlab.edgefs.controlplane.ErasureCodeAllocation;
+import com.dreamlab.edgefs.misc.erasure.RSDecoder;
+import com.dreamlab.edgefs.misc.erasure.RSEncoder;
+import com.sun.org.apache.bcel.internal.Const;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocol;
@@ -1205,7 +1208,7 @@ public class FogServiceHandler implements FogService.Iface {
                         FindReplica localReplica = new FindReplica();
                         localReplica.setNode(nodeInfo);
                         replicas.add(localReplica);
-                        if (selfInfo != null && fog.getLocalEdgesMap().containsKey(selfInfo.getNodeId())) {
+                        //if (selfInfo != null && fog.getLocalEdgesMap().containsKey(selfInfo.getNodeId())) {
                             EdgeInfo edgeInfo = fog.getLocalEdgesMap().get(edgeId);
                             if (edgeInfo != null) {
                                 // dummy values of reliability and storage are passed
@@ -1213,12 +1216,12 @@ public class FogServiceHandler implements FogService.Iface {
                                         edgeInfo.getPort(), (byte) 0, (byte) 0);
                                 localReplica.setEdgeInfo(edgeInfoData);
                             }
-                        } else {
+                        //} else {
                             // this else means that either the client is not an edge or its an edge
                             // but not reporting to this Fog, so there is no point in giving it the
                             // local edge information since the client cannot talk to the edge directly
-                            break;
-                        }
+                        //    break;
+                        //}
                     }
                 }
             }
@@ -1243,6 +1246,11 @@ public class FogServiceHandler implements FogService.Iface {
 
     @Override
     public ReadReplica read(long microbatchId, boolean fetchMetadata, String compFormat, long uncompSize) throws TException {
+        //check if the microbatch was erasure coded
+        if(this.fog.getErasureCodedMbIdList().contains(microbatchId)){
+            return readErasureCoded(microbatchId, fetchMetadata, compFormat, uncompSize);
+        }
+
         ReadReplica data = new ReadReplica();
         data.setStatus(Constants.FAILURE);
 
@@ -1298,6 +1306,25 @@ public class FogServiceHandler implements FogService.Iface {
         LOGGER.info("MicrobatchId : " + microbatchId + ", read, endTime=" + System.currentTimeMillis() + ",status="
                 + data.getStatus());
         data.setStatus(Constants.SUCCESS);
+        return data;
+    }
+
+    private ReadReplica readErasureCoded(long mbId, boolean fetchMetadata, String compFormat, long uncompSize) throws TException{
+        ReadReplica data = new ReadReplica();
+        data.setStatus(Constants.FAILURE);
+        LOGGER.info("MicrobatchId : " + mbId + ", readErasureCoded, startTime=" + System.currentTimeMillis());
+
+        List<FindReplica> shardsLocationList = find(mbId, true, true,null);
+        RSDecoder rsd = new RSDecoder(Constants.ERASURE_CODE_N, Constants.ERASURE_CODE_K, mbId, compFormat, uncompSize);
+        if(rsd.receiveAndDecode(shardsLocationList)) {
+            data.setStatus(Constants.SUCCESS);
+            data.setData(rsd.getAllBytes());
+            if (fetchMetadata) {
+                data.setMetadata(rsd.getMetadata());
+            }
+        }
+
+        LOGGER.info("MicrobatchId : " + mbId + ", readErasureCoded, endTime=" + System.currentTimeMillis() + ",status=" + data.getStatus());
         return data;
     }
 
@@ -1999,24 +2026,32 @@ public class FogServiceHandler implements FogService.Iface {
 
         //Find block placement such that reliability can be met
         Map<Short, FogStats> globalInfo = this.fog.getFogUpdateMap();
-        FogStats selfStats = FogStats.createInstance(fog.getCoarseGrainedStats().getInfo());
-        globalInfo.put(fog.getMyFogInfo().getNodeID(), selfStats);
+        FogInfo fogInfo = fog.getMyFogInfo();
+        NodeInfo fogNodeInfo = new NodeInfo(fogInfo.getNodeIP(), fogInfo.getNodeID(), fogInfo.getPort());
+        FogStats selfStats = FogStats.createInstance(fog.getCoarseGrainedStats().getInfo(), fogNodeInfo);
+        globalInfo.put(fogInfo.getNodeID(), selfStats);
         ErasureCodeAllocation eca = new ErasureCodeAllocation(Constants.ERASURE_CODE_N, Constants.ERASURE_CODE_K, expectedReliability, decodedLength, globalInfo, Constants.ERASURE_CODE_SCHEME);
         LOGGER.info("MicrobatchId : " + metadata.getMbId() + ", ErasureCodeAllocation.selectFogsForPlacement, startTime=" + System.currentTimeMillis());
         if(eca.selectFogsForPlacement()){
+            LOGGER.info("MicrobatchId : " + metadata.getMbId() + ", Achieved reliability = " + eca.getAchievedReliability());
             LOGGER.info("MicrobatchId : " + metadata.getMbId() + ", ErasureCodeAllocation.selectFogsForPlacement, endTime=" + System.currentTimeMillis());
-            //Erasure code the microbatch
-            //Place the microbatch on other fogs
-            Map<Short, Map<String, Integer>> selectedFogs = eca.getSelectedFogs();
-            LOGGER.info("Selected Fogs map: "+selectedFogs.toString());
-            for(Entry<Short, Map<String, Integer>> selection: selectedFogs.entrySet()){
 
-            }
+            Map<NodeInfo, Map<String, Integer>> selectedFogs = eca.getSelectedFogs();
+
+            //Erasure code the microbatch and send it to other fogs
+            RSEncoder encoder = new RSEncoder(Constants.ERASURE_CODE_N, Constants.ERASURE_CODE_K, data);
+            encoder.encodeAndSend(metadata, selectedFogs);
+
             //Update bookkeeping information about the microbatch
+            List<Long> erasureCodedMbIdlist  = this.fog.getErasureCodedMbIdList();
+            if(!erasureCodedMbIdlist.contains(metadata.getMbId())){
+                erasureCodedMbIdlist.add(metadata.mbId);
+            }
         } else {
+            LOGGER.info("MicrobatchId : " + metadata.getMbId() + ", Achieved reliability = " + eca.getAchievedReliability());
             LOGGER.info("MicrobatchId : " + metadata.getMbId() + ", ErasureCodeAllocation.selectFogsForPlacement, endTime=" + System.currentTimeMillis());
             LOGGER.info("MicrobatchId : "+ metadata.getMbId() + ", Cannot find edges that satisfy reliability constraint");
-            //TODO return false write response
+            return wrResponse;
         }
         LOGGER.info("MicrobatchId : " + metadata.getMbId() + ", writeErasureCoded, endTime=" + System.currentTimeMillis());
 

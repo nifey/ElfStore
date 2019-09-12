@@ -381,6 +381,9 @@ public class Fog implements Serializable {
 		return streamRelStreamIdMap;
 	}
 
+	/** This list will be used during a read to determine if the requested MbId was replicated or erasure coded **/
+	private List<Long> erasureCodedMbIdList = new ArrayList<Long>();
+
 	public void setStreamRelStreamIdMap(Map<Double, Set<String>> streamRelStreamIdMap) {
 		this.streamRelStreamIdMap = streamRelStreamIdMap;
 	}
@@ -839,6 +842,8 @@ public class Fog implements Serializable {
 	public void setMbIdStreamIdMap(Map<Long, String> mbIdStreamIdMap) {
 		this.mbIdStreamIdMap = mbIdStreamIdMap;
 	}
+
+	public List<Long> getErasureCodedMbIdList() { return erasureCodedMbIdList; }
 
 	/*********************************************************************************/
 
