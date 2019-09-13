@@ -148,6 +148,8 @@ service EdgeService {
    //ReadReplica read(1:string mbId, 2:byte fetchMetadata,3:string compFormat),
    ReadReplica read(1:i64 mbId, 2:byte fetchMetadata,3:string compFormat,4:i64 uncompSize),
 
+   ReadReplica readShard(1:i64 mbId, 2:byte fetchMetadata,3:string compFormat,4:i64 uncompSize,5:i16 shardIndex),
+
    //this only returns the metadata
    //ReadReplica getMetadata(1:string mbId),
    ReadReplica getMetadata(1:i64 mbId),

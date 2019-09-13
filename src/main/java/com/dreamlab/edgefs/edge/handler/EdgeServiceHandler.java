@@ -49,7 +49,12 @@ public class EdgeServiceHandler implements EdgeService.Iface {
 				byte[] mbDataInBytesArray = new byte[length];
 				mbData.get(mbDataInBytesArray);
 
-				String filePath = edge.getDatapath() + "/" + mbId + ".data";
+				String filePath;
+				if(mbMetadata.isSetIsErasureCoded()) {
+					filePath = edge.getDatapath() + "/" + mbId + "." + mbMetadata.getShardIndex() +".data";
+				} else {
+					filePath = edge.getDatapath() + "/" + mbId +".data";
+				}
 				CompressionAndDecompression compAndDecompObj = new CompressionAndDecompression();
 				Class cls = compAndDecompObj.getClass();
 				Method compressAndWriteMethod = cls.getDeclaredMethod("compressAndWrite" + mbMetadata.getCompFormat(),String.class,byte[].class);
@@ -63,7 +68,12 @@ public class EdgeServiceHandler implements EdgeService.Iface {
 				edge.setStorage(edge.getStorage() - mbSize);
 
 				// Metadata
-				File metaFile = new File(edge.getDatapath() + "/" + mbId + ".meta");
+                File metaFile;
+				if(mbMetadata.isSetIsErasureCoded()) {
+					metaFile = new File(edge.getDatapath() + "/" + mbId +"."+mbMetadata.getShardIndex()+ ".meta");
+				} else {
+					metaFile = new File(edge.getDatapath() + "/" + mbId + ".meta");
+				}
 				FileOutputStream foStream = new FileOutputStream(metaFile);
 				ObjectOutputStream objStream = new ObjectOutputStream(foStream);
 
@@ -105,6 +115,49 @@ public class EdgeServiceHandler implements EdgeService.Iface {
 			}
 			if (fetchMetadata == 1) {
 				File metaFile = new File(edge.getDatapath() + "/" + mbId + ".meta");
+				FileInputStream fiStream = new FileInputStream(metaFile);
+				ObjectInputStream objStream = new ObjectInputStream(fiStream);
+
+				try {
+					Metadata mbMetadata = (Metadata) objStream.readObject();
+					replica.setMetadata(mbMetadata);
+				} catch (ClassNotFoundException e) {
+					LOGGER.error("Microbatch metadata different from the expected format, not sending it");
+					e.printStackTrace();
+					return replica;
+				} finally {
+					objStream.close();
+					fiStream.close();
+				}
+			}
+		} catch (IOException e) {
+			LOGGER.error("Error while reading the microbatchId : " + mbId);
+			e.printStackTrace();
+			return replica;
+		} catch(Exception e){
+			e.printStackTrace();
+		}
+		replica.setStatus(Constants.SUCCESS);
+		return replica;
+	}
+
+	@Override
+	public ReadReplica readShard(long mbId, byte fetchMetadata, String compFormat,long uncompSize, short shardIndex) throws TException {
+		ReadReplica replica = new ReadReplica();
+		replica.setStatus(Constants.FAILURE);
+		String filePath = edge.getDatapath() + "/" + mbId + "." + shardIndex+ ".data";
+		try {
+			CompressionAndDecompression compAndDecompObj = new CompressionAndDecompression();
+			Class cls = compAndDecompObj.getClass();
+			Method decompressAndReadMethod = cls.getDeclaredMethod("decompressAndRead" + compFormat,String.class,long.class);
+			byte[] byteArray = (byte[]) decompressAndReadMethod.invoke(compAndDecompObj, filePath,uncompSize);
+			if (byteArray != null) {
+				replica.setData(byteArray);
+			} else {
+				return replica;
+			}
+			if (fetchMetadata == 1) {
+				File metaFile = new File(edge.getDatapath() + "/" + mbId +"."+shardIndex + ".meta");
 				FileInputStream fiStream = new FileInputStream(metaFile);
 				ObjectInputStream objStream = new ObjectInputStream(fiStream);
 

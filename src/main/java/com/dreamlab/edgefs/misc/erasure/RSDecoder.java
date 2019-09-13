@@ -24,7 +24,7 @@ public class RSDecoder {
     private int N;
     private int K;
     private Long mbId;
-    private byte[] allBytes;
+    private byte[] dataBytes;
     private byte[][] shards;
     private boolean[] shardPresent;
     private int shardCount = 0;
@@ -41,7 +41,8 @@ public class RSDecoder {
         this.N = N;
         this.K = K;
         this.mbId = mbId;
-        this.shards = new byte[this.N][];
+        this.shardSize = (short)uncompSize;
+        this.shards = new byte[this.N][shardSize];
         this.shardPresent = new boolean [this.N];
         Arrays.fill(shardPresent, false);
         this.compFormat = compFormat;
@@ -56,15 +57,12 @@ public class RSDecoder {
     }
 
     public void setShard(Short shardIndex, byte[] shardData){
-        this.shards[shardIndex] = shardData;
+        System.arraycopy(shardData, 0, this.shards[shardIndex], 0, this.shardSize);
         this.shardPresent[shardIndex] = true;
         this.shardCount++;
-        if(shardSize==0){
-            this.shardSize = shardData.length;
-        }
     }
 
-    public byte[] getAllBytes(){ return this.allBytes; }
+    public byte[] getDataBytes(){ return this.dataBytes; }
 
     public Metadata getMetadata(){ return this.metadata; }
 
@@ -96,21 +94,26 @@ public class RSDecoder {
         if(!allDataShardsPresent) {
             for (int i = 0; i < this.N; i++) {
                 if (!this.shardPresent[i]) {
+                    LOGGER.info("Shard "+i + " missing");
                     shards[i] = new byte [shardSize];
                 }
             }
             LOGGER.info("Some data shards missing, recovering microbatch");
+            LOGGER.info("Shardsize "+shardSize);
             ReedSolomon reedSolomon = ReedSolomon.create(this.K, this.N - this.K);
             reedSolomon.decodeMissing(shards, shardPresent, 0, shardSize);
         }
 
         // Combine the data shards into one buffer
-        allBytes = new byte [shardSize * this.K];
+        byte[] allBytes = new byte [shardSize * this.K];
         for (int i = 0; i < this.K; i++) {
             System.arraycopy(shards[i], 0, allBytes, shardSize * i, shardSize);
         }
 
+        LOGGER.info("MicroBatchSize = " + ByteBuffer.wrap(allBytes).getInt());
         int microBatchSize = ByteBuffer.wrap(allBytes).getInt();
+        this.dataBytes = new byte[microBatchSize];
+        System.arraycopy(allBytes, BYTES_IN_INT, this.dataBytes, 0, microBatchSize);
         this.metadata.setUncompSize(microBatchSize);
 
         return true;
@@ -150,8 +153,9 @@ class ReadFromEdgeTask implements Runnable {
                     LOGGER.info("Response received from edge "+edgeInfo+ " is " + response.getStatus());
                     if(response.getStatus() == Constants.SUCCESS){
                         Metadata metadata = response.getMetadata();
-                        rsd.setShard(metadata.getShardIndex(), response.data.array());
+                        rsd.setShard(metadata.getShardIndex(), response.getData());
                         rsd.setMetadata(metadata);
+                        LOGGER.info("response.getdata.length "+response.getData().length);
                     }
         } catch (TException e) {
             LOGGER.error("Error while reading from edge "+ edgeInfo +" : " + e);

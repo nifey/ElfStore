@@ -28,7 +28,6 @@ import com.dreamlab.edgefs.controlplane.CoarseGrainedStats;
 import com.dreamlab.edgefs.controlplane.ErasureCodeAllocation;
 import com.dreamlab.edgefs.misc.erasure.RSDecoder;
 import com.dreamlab.edgefs.misc.erasure.RSEncoder;
-import com.sun.org.apache.bcel.internal.Const;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocol;
@@ -1208,7 +1207,7 @@ public class FogServiceHandler implements FogService.Iface {
                         FindReplica localReplica = new FindReplica();
                         localReplica.setNode(nodeInfo);
                         replicas.add(localReplica);
-                        //if (selfInfo != null && fog.getLocalEdgesMap().containsKey(selfInfo.getNodeId())) {
+                        if (selfInfo != null && fog.getLocalEdgesMap().containsKey(selfInfo.getNodeId())) {
                             EdgeInfo edgeInfo = fog.getLocalEdgesMap().get(edgeId);
                             if (edgeInfo != null) {
                                 // dummy values of reliability and storage are passed
@@ -1216,12 +1215,12 @@ public class FogServiceHandler implements FogService.Iface {
                                         edgeInfo.getPort(), (byte) 0, (byte) 0);
                                 localReplica.setEdgeInfo(edgeInfoData);
                             }
-                        //} else {
+                        } else {
                             // this else means that either the client is not an edge or its an edge
                             // but not reporting to this Fog, so there is no point in giving it the
                             // local edge information since the client cannot talk to the edge directly
-                        //    break;
-                        //}
+                            break;
+                        }
                     }
                 }
             }
@@ -1318,7 +1317,7 @@ public class FogServiceHandler implements FogService.Iface {
         RSDecoder rsd = new RSDecoder(Constants.ERASURE_CODE_N, Constants.ERASURE_CODE_K, mbId, compFormat, uncompSize);
         if(rsd.receiveAndDecode(shardsLocationList)) {
             data.setStatus(Constants.SUCCESS);
-            data.setData(rsd.getAllBytes());
+            data.setData(rsd.getDataBytes());
             if (fetchMetadata) {
                 data.setMetadata(rsd.getMetadata());
             }

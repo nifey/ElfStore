@@ -46,6 +46,7 @@ public class RSEncoder {
         this.shards = new byte[this.N][this.shardSize];
         ByteBuffer.wrap(allBytes).putInt(fileSize);
         dataBuffer.get(allBytes, BYTES_IN_INT, fileSize);
+        LOGGER.info("File size read : "+ByteBuffer.wrap(allBytes).getInt());
     }
 
     public byte[] getShard(Short shardIndex){ return this.shards[shardIndex]; }
@@ -62,6 +63,8 @@ public class RSEncoder {
         ReedSolomon reedSolomon = ReedSolomon.create(this.K, this.N - this.K);
         reedSolomon.encodeParity(shards, 0, shardSize);
 
+        LOGGER.info("File size read in shard "+ByteBuffer.wrap(shards[0]).getInt());
+        LOGGER.info("shard size "+shardSize);
         LOGGER.info("Finished encoding data, endTime="+System.currentTimeMillis());
 
         LOGGER.info("Starting to send shards to other fogs, startTime=" + System.currentTimeMillis());
@@ -77,9 +80,9 @@ public class RSEncoder {
                     LOGGER.info("Got String "+s);
                     WritePreference preference = WritePreference.HHL;
                     if(s.equals("HH")){
-                        preference = WritePreference.HHH;
-                    } else if(s.equals("HL")){
                         preference = WritePreference.HHL;
+                    } else if(s.equals("HL")){
+                        preference = WritePreference.HLH;
                     }
                     int count = allocMap.get(s);
                     for(int i=0;i<count; i++) {
@@ -93,6 +96,7 @@ public class RSEncoder {
                         shardIndex++;
                     }
                 }
+                metadata.setUncompSize(shardSize);
                 executor.submit(new WriteToFogTask(nInfo, metadata, this ,shardPreferenceMap));
             }
         }
@@ -114,6 +118,7 @@ class WriteToFogTask implements Runnable {
     public WriteToFogTask(NodeInfo fogInfo, Metadata metadata, RSEncoder rse, Map<WritePreference, List<Short>> shardPreferenceMap){
         this.fogInfo = fogInfo;
         this.metadata = metadata;
+        this.metadata.setIsErasureCoded(true);
         this.rse = rse;
         this.shardPreferenceMap = shardPreferenceMap;
         LOGGER.info("Initialized with fogInfo "+fogInfo);

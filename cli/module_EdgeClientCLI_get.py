@@ -271,6 +271,51 @@ class EdgeClient:
              else:
                  print("The queried fog does not have data")
 
+    def read(self, microbatchId):
+        edgeInfoData = EdgeInfoData()
+        edgeInfoData.nodeId = EDGE_ID
+        edgeInfoData.nodeIp = EDGE_IP
+        edgeInfoData.port = EDGE_PORT
+        edgeInfoData.reliability = EDGE_RELIABILITY
+        edgeInfoData.storage = 12
+
+        compFormat = str()
+        uncompSize = int()
+        client,transport = self.openSocketConnection(FOG_IP,FOG_PORT,FOG_SERVICE)
+        compFormatSize = client.requestCompFormatSize(microbatchId);
+        print(compFormatSize)
+        if len(compFormatSize) !=0:
+            compFormat = list(compFormatSize.keys())[0];
+            uncompSize = compFormatSize[compFormat];
+
+        timestamp_record = str(microbatchId)+ ",23, local ,read req,starttime = "+repr(time.time())+","
+
+        response = client.read(microbatchId, 1, compFormat, uncompSize)
+        print("Read status is ",response.status)
+        if response.status==0 :
+            print("File not found : cannot read file")
+            return 0,0
+
+        elif response.status==1:
+            bytesRead = len(response.data)
+            f = open("getFile", "wb")
+            f.write(response.data)
+            f.close()
+            print("Local Read ",len(response.data)," number of bytes")
+            print("metadata also read ",response.metadata)
+            return 1,bytesRead #successful read
+        else:
+            return response.code,0
+
+
+        timestamp_record = timestamp_record +"endtime = " + repr(time.time()) + '\n'
+        print("the time stamp for read request is ",timestamp_record)
+
+        myLogs = open(BASE_LOG+ 'logs.txt','a')
+        myLogs.write(timestamp_record)
+        myLogs.close()
+
+        self.closeSocket(transport)
 
 def get(start,end,edgeId,edgeIp,edgePort,edgeReliability,fogIp,fogPort, verbose = False):
     if int(end) == -1 : end = start
@@ -305,7 +350,7 @@ def get(start,end,edgeId,edgeIp,edgePort,edgeReliability,fogIp,fogPort, verbose 
             bytesRead = 0
             responseCode = 0;
             with nostdout():
-                responseCode,bytesRead = myEdge.findAndRead(i)
+                responseCode,bytesRead = myEdge.read(i)
             sys.stdout = sys.__stdout__
             #print "Read response for microbatch "+str(i)+" is : \nResponse = "+str(JSON_RESPONSE[i]['status'])+" \nNo. of bytes read = "+str(len(JSON_RESPONSE[i]['data']))+"\n"
             if responseCode!=1 : print("Read response for microbatch "+str(i)+" is : \nfailure  \nNo. of bytes read = 0\n"+"Response Code: "+str(responseCode))
