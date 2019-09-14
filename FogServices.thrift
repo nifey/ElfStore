@@ -465,6 +465,10 @@ service FogService {
 	//ReadReplica read(1: string microbatchId, 2:bool fetchMetadata);
 	ReadReplica read(1: i64 microbatchId, 2:bool fetchMetadata,3:string compFormat,4:i64 uncompSize);
 
+	list<ReadReplica> getDataShards(1: i64 microbatchId, 2:string compFormat,4:i64 uncompSize);
+
+	list<ReadReplica> getParityShards(1: i64 microbatchId, 2:string compFormat,4:i64 uncompSize);
+
 	QueryReplica findUsingQuery(1: string metadataKey, 2:string metadataValue, 3:bool checkNeighbors, 4:bool checkBuddies);
 
 	//only returning metadata in this operation

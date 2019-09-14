@@ -226,6 +226,9 @@ class EdgeClient:
                  elif response.status==1:
                      #self.formulateJsonResponse(microbatchId,response)
                      bytesRead = len(response.data)
+                     f = open("getFile", "wb")
+                     f.write(response.data)
+                     f.close()
                      print("Local Read ",len(response.data)," number of bytes")
                      print("metadata also read ",response.metadata)
                      return 1,bytesRead #successful read
@@ -261,6 +264,9 @@ class EdgeClient:
                  if(response.status == 1):
                      #self.formulateJsonResponse(microbatchId,response)
                      bytesRead = len(response.data)
+                     f = open("getFile", "wb")
+                     f.write(response.data)
+                     f.close()
                      print("Fog Amount of bytes read ",len(response.data))
                      return 1,bytesRead #successful read
                  else:
@@ -271,7 +277,7 @@ class EdgeClient:
              else:
                  print("The queried fog does not have data")
 
-    def read(self, microbatchId):
+    def readErasureCoded(self, microbatchId):
         edgeInfoData = EdgeInfoData()
         edgeInfoData.nodeId = EDGE_ID
         edgeInfoData.nodeIp = EDGE_IP
@@ -317,7 +323,7 @@ class EdgeClient:
 
         self.closeSocket(transport)
 
-def get(start,end,edgeId,edgeIp,edgePort,edgeReliability,fogIp,fogPort, verbose = False):
+def get(start,end,edgeId,edgeIp,edgePort,edgeReliability,fogIp,fogPort,erasureCode, verbose = False):
     if int(end) == -1 : end = start
     global START
     START = int(start)
@@ -341,7 +347,10 @@ def get(start,end,edgeId,edgeIp,edgePort,edgeReliability,fogIp,fogPort, verbose 
     if verbose == True:
         i = START
         while i<=END:
-            responseCode,bytesRead = myEdge.findAndRead(i)
+            if erasureCode == True:
+                responseCode,bytesRead = myEdge.readErasureCoded(i)
+            else:
+                responseCode,bytesRead = myEdge.findAndRead(i)
             i = i + 1
     else:
 
@@ -350,7 +359,10 @@ def get(start,end,edgeId,edgeIp,edgePort,edgeReliability,fogIp,fogPort, verbose 
             bytesRead = 0
             responseCode = 0;
             with nostdout():
-                responseCode,bytesRead = myEdge.read(i)
+                if erasureCode == True:
+                    responseCode,bytesRead = myEdge.readErasureCoded(i)
+                else:
+                    responseCode,bytesRead = myEdge.findAndRead(i)
             sys.stdout = sys.__stdout__
             #print "Read response for microbatch "+str(i)+" is : \nResponse = "+str(JSON_RESPONSE[i]['status'])+" \nNo. of bytes read = "+str(len(JSON_RESPONSE[i]['data']))+"\n"
             if responseCode!=1 : print("Read response for microbatch "+str(i)+" is : \nfailure  \nNo. of bytes read = 0\n"+"Response Code: "+str(responseCode))

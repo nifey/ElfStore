@@ -35,7 +35,6 @@ public class RSDecoder {
     private Metadata metadata = null;
 
     private Logger LOGGER = LoggerFactory.getLogger(RSDecoder.class);
-    private ExecutorService executor = Executors.newFixedThreadPool(5);
 
     public RSDecoder(int N, int K, Long mbId, String compFormat, long uncompSize){
         this.N = N;
@@ -52,7 +51,7 @@ public class RSDecoder {
 
     public void setMetadata(Metadata metadata){
         if(this.metadata == null){
-            this.metadata = metadata;
+            this.metadata = metadata.deepCopy();
         }
     }
 
@@ -68,30 +67,34 @@ public class RSDecoder {
 
     public boolean receiveAndDecode(List<FindReplica> shardsLocationList){
         LOGGER.info("ShardsLocationList "+ shardsLocationList);
-        //Retrieve shards from edges
+
+        ExecutorService dataExecutor = Executors.newFixedThreadPool(4);
+        //Retrieve data shards from fogs
         Iterator<FindReplica> shardIterator = shardsLocationList.iterator();
         while(shardIterator.hasNext()){
             FindReplica shardLocation = shardIterator.next();
-            executor.submit(new ReadFromEdgeTask(shardLocation.getEdgeInfo(), this.mbId, this));
+            dataExecutor.submit(new ReadFromEdgeTask(shardLocation.getNode(), this.mbId, this, true));
         }
-        executor.shutdown();
-        while(!executor.isTerminated()){}
+        dataExecutor.shutdown();
+        while(!dataExecutor.isTerminated()){}
 
-        //Check if K shards are retrieved
-        if (this.shardCount < this.K) {
-            LOGGER.info("Not enough shards present");
-            return false;
-        }
-
-        boolean allDataShardsPresent = true;
-        for(int i=0; i<this.K; i++){
-            if(!shardPresent[i]){
-                allDataShardsPresent = false;
-                break;
+        if(this.shardCount<this.K) {
+            ExecutorService parityExecutor = Executors.newFixedThreadPool(3);
+            //Retrieve parity shards from fogs
+            Iterator<FindReplica> parityIterator = shardsLocationList.iterator();
+            while(parityIterator.hasNext()){
+                FindReplica shardLocation = parityIterator.next();
+                parityExecutor.submit(new ReadFromEdgeTask(shardLocation.getNode(), this.mbId, this, false));
             }
-        }
+            parityExecutor.shutdown();
+            while(!parityExecutor.isTerminated()){}
 
-        if(!allDataShardsPresent) {
+            //Check if K shards are retrieved
+            if (this.shardCount < this.K) {
+                LOGGER.info("Not enough shards present");
+                return false;
+            }
+
             for (int i = 0; i < this.N; i++) {
                 if (!this.shardPresent[i]) {
                     LOGGER.info("Shard "+i + " missing");
@@ -124,41 +127,52 @@ class ReadFromEdgeTask implements Runnable {
 
     private Logger LOGGER = LoggerFactory.getLogger(ReadFromEdgeTask.class);
 
-    private EdgeInfoData edgeInfo;
+    private NodeInfoData fogInfo;
     private Long mbId;
     private RSDecoder rsd;
-    public ReadFromEdgeTask(EdgeInfoData edgeInfo, Long mbId, RSDecoder rsd){
-        this.edgeInfo = edgeInfo;
+    private boolean readData;
+    public ReadFromEdgeTask(NodeInfoData fogInfo, Long mbId, RSDecoder rsd, boolean readData){
+        this.fogInfo = fogInfo;
         this.mbId = mbId;
         this.rsd = rsd;
-        LOGGER.info("Initialized with edgeInfo "+edgeInfo);
+        this.readData = readData;
+        LOGGER.info("Initialized with fogInfo "+fogInfo +" readData="+readData);
     }
 
     @Override
     public void run() {
-        TTransport transport = new TFramedTransport(new TSocket(edgeInfo.getNodeIp(), edgeInfo.getPort()));
+        TTransport transport = new TFramedTransport(new TSocket(fogInfo.getNodeIP(), fogInfo.getPort()));
         try {
             transport.open();
         } catch (TTransportException e) {
             transport.close();
-            LOGGER.error("Unable to contact edge for reading shard : " + e);
+            LOGGER.error("Unable to contact fog for reading shards : " + e);
             e.printStackTrace();
             return;
         }
         TProtocol protocol = new TBinaryProtocol(transport);
-        EdgeService.Client edgeClient = new EdgeService.Client(protocol);
+        FogService.Client fogClient = new FogService.Client(protocol);
         try {
-                    LOGGER.info("Reading shard from edge "+ edgeInfo);
-                    ReadReplica response =  edgeClient.read(mbId, (byte) 1, rsd.compFormat, rsd.uncompSize);
-                    LOGGER.info("Response received from edge "+edgeInfo+ " is " + response.getStatus());
-                    if(response.getStatus() == Constants.SUCCESS){
-                        Metadata metadata = response.getMetadata();
-                        rsd.setShard(metadata.getShardIndex(), response.getData());
-                        rsd.setMetadata(metadata);
-                        LOGGER.info("response.getdata.length "+response.getData().length);
-                    }
+            List<ReadReplica> shardList;
+            if(this.readData) {
+                LOGGER.info("Reading data shards from fog "+ fogInfo);
+                shardList = fogClient.getDataShards(mbId, rsd.compFormat, rsd.uncompSize);
+            } else {
+                LOGGER.info("Reading parity shards from fog "+ fogInfo);
+                shardList = fogClient.getParityShards(mbId, rsd.compFormat, rsd.uncompSize);
+            }
+            Iterator<ReadReplica> iter = shardList.iterator();
+            while(iter.hasNext()) {
+                ReadReplica response = iter.next();
+                if (response.getStatus() == Constants.SUCCESS) {
+                    Metadata metadata = response.getMetadata();
+                    rsd.setShard(metadata.getShardIndex(), response.getData());
+                    rsd.setMetadata(metadata);
+                } else {
+                }
+            }
         } catch (TException e) {
-            LOGGER.error("Error while reading from edge "+ edgeInfo +" : " + e);
+            LOGGER.error("Error while reading from fog "+ fogInfo +" : " + e);
             e.printStackTrace();
         } finally {
             transport.close();

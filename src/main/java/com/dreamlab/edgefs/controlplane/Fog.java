@@ -277,7 +277,7 @@ public class Fog implements Serializable {
 	// in
 	// use is anyways backed by a ConcurrentHashMap
 //	private Map<String,Map<Short,Byte>> mbIDLocationMap = new ConcurrentHashMap<>();
-	private Map<Long, Map<Short, Byte>> mbIDLocationMap = new ConcurrentHashMap<>();
+	private Map<Long, Map<Short, List<Short>>> mbIDLocationMap = new ConcurrentHashMap<Long, Map<Short, List<Short>>>();
 
 	// the stream level metadata is stored but not used for searching. This is
 	// stored
@@ -381,9 +381,6 @@ public class Fog implements Serializable {
 		return streamRelStreamIdMap;
 	}
 
-	/** This list will be used during a read to determine if the requested MbId was replicated or erasure coded **/
-	private List<Long> erasureCodedMbIdList = new ArrayList<Long>();
-
 	public void setStreamRelStreamIdMap(Map<Double, Set<String>> streamRelStreamIdMap) {
 		this.streamRelStreamIdMap = streamRelStreamIdMap;
 	}
@@ -444,11 +441,11 @@ public class Fog implements Serializable {
 	 * this.mbIDLocationMap = mbIDLocationMap; }
 	 */
 
-	public Map<Long, Map<Short, Byte>> getMbIDLocationMap() {
+	public Map<Long, Map<Short, List<Short>>> getMbIDLocationMap() {
 		return mbIDLocationMap;
 	}
 
-	public void setMbIDLocationMap(Map<Long, Map<Short, Byte>> mbIDLocationMap) {
+	public void setMbIDLocationMap(Map<Long, Map<Short, List<Short>>> mbIDLocationMap) {
 		this.mbIDLocationMap = mbIDLocationMap;
 	}
 
@@ -842,8 +839,6 @@ public class Fog implements Serializable {
 	public void setMbIdStreamIdMap(Map<Long, String> mbIdStreamIdMap) {
 		this.mbIdStreamIdMap = mbIdStreamIdMap;
 	}
-
-	public List<Long> getErasureCodedMbIdList() { return erasureCodedMbIdList; }
 
 	/*********************************************************************************/
 

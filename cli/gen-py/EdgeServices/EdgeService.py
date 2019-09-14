@@ -71,6 +71,17 @@ class Iface(object):
         """
         pass
 
+    def readShard(self, mbId, fetchMetadata, compFormat, uncompSize, shardIndex):
+        """
+        Parameters:
+         - mbId
+         - fetchMetadata
+         - compFormat
+         - uncompSize
+         - shardIndex
+        """
+        pass
+
     def getMetadata(self, mbId):
         """
         Parameters:
@@ -295,6 +306,45 @@ class Client(Iface):
             return result.success
         raise TApplicationException(TApplicationException.MISSING_RESULT, "read failed: unknown result")
 
+    def readShard(self, mbId, fetchMetadata, compFormat, uncompSize, shardIndex):
+        """
+        Parameters:
+         - mbId
+         - fetchMetadata
+         - compFormat
+         - uncompSize
+         - shardIndex
+        """
+        self.send_readShard(mbId, fetchMetadata, compFormat, uncompSize, shardIndex)
+        return self.recv_readShard()
+
+    def send_readShard(self, mbId, fetchMetadata, compFormat, uncompSize, shardIndex):
+        self._oprot.writeMessageBegin('readShard', TMessageType.CALL, self._seqid)
+        args = readShard_args()
+        args.mbId = mbId
+        args.fetchMetadata = fetchMetadata
+        args.compFormat = compFormat
+        args.uncompSize = uncompSize
+        args.shardIndex = shardIndex
+        args.write(self._oprot)
+        self._oprot.writeMessageEnd()
+        self._oprot.trans.flush()
+
+    def recv_readShard(self):
+        iprot = self._iprot
+        (fname, mtype, rseqid) = iprot.readMessageBegin()
+        if mtype == TMessageType.EXCEPTION:
+            x = TApplicationException()
+            x.read(iprot)
+            iprot.readMessageEnd()
+            raise x
+        result = readShard_result()
+        result.read(iprot)
+        iprot.readMessageEnd()
+        if result.success is not None:
+            return result.success
+        raise TApplicationException(TApplicationException.MISSING_RESULT, "readShard failed: unknown result")
+
     def getMetadata(self, mbId):
         """
         Parameters:
@@ -352,6 +402,7 @@ class Processor(Iface, TProcessor):
         self._processMap["write"] = Processor.process_write
         self._processMap["update"] = Processor.process_update
         self._processMap["read"] = Processor.process_read
+        self._processMap["readShard"] = Processor.process_readShard
         self._processMap["getMetadata"] = Processor.process_getMetadata
         self._processMap["zip"] = Processor.process_zip
 
@@ -504,6 +555,29 @@ class Processor(Iface, TProcessor):
             msg_type = TMessageType.EXCEPTION
             result = TApplicationException(TApplicationException.INTERNAL_ERROR, 'Internal error')
         oprot.writeMessageBegin("read", msg_type, seqid)
+        result.write(oprot)
+        oprot.writeMessageEnd()
+        oprot.trans.flush()
+
+    def process_readShard(self, seqid, iprot, oprot):
+        args = readShard_args()
+        args.read(iprot)
+        iprot.readMessageEnd()
+        result = readShard_result()
+        try:
+            result.success = self._handler.readShard(args.mbId, args.fetchMetadata, args.compFormat, args.uncompSize, args.shardIndex)
+            msg_type = TMessageType.REPLY
+        except TTransport.TTransportException:
+            raise
+        except TApplicationException as ex:
+            logging.exception('TApplication exception in handler')
+            msg_type = TMessageType.EXCEPTION
+            result = ex
+        except Exception:
+            logging.exception('Unexpected exception in handler')
+            msg_type = TMessageType.EXCEPTION
+            result = TApplicationException(TApplicationException.INTERNAL_ERROR, 'Internal error')
+        oprot.writeMessageBegin("readShard", msg_type, seqid)
         result.write(oprot)
         oprot.writeMessageEnd()
         oprot.trans.flush()
@@ -1333,6 +1407,176 @@ class read_result(object):
         return not (self == other)
 all_structs.append(read_result)
 read_result.thrift_spec = (
+    (0, TType.STRUCT, 'success', [ReadReplica, None], None, ),  # 0
+)
+
+
+class readShard_args(object):
+    """
+    Attributes:
+     - mbId
+     - fetchMetadata
+     - compFormat
+     - uncompSize
+     - shardIndex
+    """
+
+
+    def __init__(self, mbId=None, fetchMetadata=None, compFormat=None, uncompSize=None, shardIndex=None,):
+        self.mbId = mbId
+        self.fetchMetadata = fetchMetadata
+        self.compFormat = compFormat
+        self.uncompSize = uncompSize
+        self.shardIndex = shardIndex
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 1:
+                if ftype == TType.I64:
+                    self.mbId = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 2:
+                if ftype == TType.BYTE:
+                    self.fetchMetadata = iprot.readByte()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 3:
+                if ftype == TType.STRING:
+                    self.compFormat = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 4:
+                if ftype == TType.I64:
+                    self.uncompSize = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 5:
+                if ftype == TType.I16:
+                    self.shardIndex = iprot.readI16()
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('readShard_args')
+        if self.mbId is not None:
+            oprot.writeFieldBegin('mbId', TType.I64, 1)
+            oprot.writeI64(self.mbId)
+            oprot.writeFieldEnd()
+        if self.fetchMetadata is not None:
+            oprot.writeFieldBegin('fetchMetadata', TType.BYTE, 2)
+            oprot.writeByte(self.fetchMetadata)
+            oprot.writeFieldEnd()
+        if self.compFormat is not None:
+            oprot.writeFieldBegin('compFormat', TType.STRING, 3)
+            oprot.writeString(self.compFormat.encode('utf-8') if sys.version_info[0] == 2 else self.compFormat)
+            oprot.writeFieldEnd()
+        if self.uncompSize is not None:
+            oprot.writeFieldBegin('uncompSize', TType.I64, 4)
+            oprot.writeI64(self.uncompSize)
+            oprot.writeFieldEnd()
+        if self.shardIndex is not None:
+            oprot.writeFieldBegin('shardIndex', TType.I16, 5)
+            oprot.writeI16(self.shardIndex)
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+all_structs.append(readShard_args)
+readShard_args.thrift_spec = (
+    None,  # 0
+    (1, TType.I64, 'mbId', None, None, ),  # 1
+    (2, TType.BYTE, 'fetchMetadata', None, None, ),  # 2
+    (3, TType.STRING, 'compFormat', 'UTF8', None, ),  # 3
+    (4, TType.I64, 'uncompSize', None, None, ),  # 4
+    (5, TType.I16, 'shardIndex', None, None, ),  # 5
+)
+
+
+class readShard_result(object):
+    """
+    Attributes:
+     - success
+    """
+
+
+    def __init__(self, success=None,):
+        self.success = success
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 0:
+                if ftype == TType.STRUCT:
+                    self.success = ReadReplica()
+                    self.success.read(iprot)
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('readShard_result')
+        if self.success is not None:
+            oprot.writeFieldBegin('success', TType.STRUCT, 0)
+            self.success.write(oprot)
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+all_structs.append(readShard_result)
+readShard_result.thrift_spec = (
     (0, TType.STRUCT, 'success', [ReadReplica, None], None, ),  # 0
 )
 

@@ -97,7 +97,11 @@ public final class Constants {
 	public static String MICROBATCH_METADATA_ID = "mbId";
 	
 	public static String MICROBATCH_METADATA_TIMESTAMP = "timestamp";
-	
+
+	public static String ERASURE_CODED_DATA_METADATA_ID = "eMbIdData";
+
+	public static String ERASURE_CODED_PARITY_METADATA_ID = "eMbIdParity";
+
 	//200MB is the limit when we stop writing to an edge
 	public static int DISK_WATERMARK = 200;
 	

@@ -50,7 +50,7 @@ public class EdgeServiceHandler implements EdgeService.Iface {
 				mbData.get(mbDataInBytesArray);
 
 				String filePath;
-				if(mbMetadata.isSetIsErasureCoded()) {
+				if(mbMetadata.isIsErasureCoded()) {
 					filePath = edge.getDatapath() + "/" + mbId + "." + mbMetadata.getShardIndex() +".data";
 				} else {
 					filePath = edge.getDatapath() + "/" + mbId +".data";
@@ -69,7 +69,7 @@ public class EdgeServiceHandler implements EdgeService.Iface {
 
 				// Metadata
                 File metaFile;
-				if(mbMetadata.isSetIsErasureCoded()) {
+				if(mbMetadata.isIsErasureCoded()) {
 					metaFile = new File(edge.getDatapath() + "/" + mbId +"."+mbMetadata.getShardIndex()+ ".meta");
 				} else {
 					metaFile = new File(edge.getDatapath() + "/" + mbId + ".meta");
@@ -151,7 +151,7 @@ public class EdgeServiceHandler implements EdgeService.Iface {
 			Class cls = compAndDecompObj.getClass();
 			Method decompressAndReadMethod = cls.getDeclaredMethod("decompressAndRead" + compFormat,String.class,long.class);
 			byte[] byteArray = (byte[]) decompressAndReadMethod.invoke(compAndDecompObj, filePath,uncompSize);
-			if (byteArray != null) {
+			if (byteArray != null && byteArray.length != 0) {
 				replica.setData(byteArray);
 			} else {
 				return replica;
@@ -173,12 +173,10 @@ public class EdgeServiceHandler implements EdgeService.Iface {
 					fiStream.close();
 				}
 			}
-		} catch (IOException e) {
+		} catch(Exception e){
 			LOGGER.error("Error while reading the microbatchId : " + mbId);
 			e.printStackTrace();
 			return replica;
-		} catch(Exception e){
-			e.printStackTrace();
 		}
 		replica.setStatus(Constants.SUCCESS);
 		return replica;

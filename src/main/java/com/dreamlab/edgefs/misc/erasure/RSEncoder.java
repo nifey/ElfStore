@@ -96,8 +96,9 @@ public class RSEncoder {
                         shardIndex++;
                     }
                 }
-                metadata.setUncompSize(shardSize);
-                executor.submit(new WriteToFogTask(nInfo, metadata, this ,shardPreferenceMap));
+                Metadata newMetadata = metadata.deepCopy();
+                newMetadata.setUncompSize(shardSize);
+                executor.submit(new WriteToFogTask(nInfo, newMetadata, this ,shardPreferenceMap));
             }
         }
         executor.shutdown();
@@ -143,8 +144,9 @@ class WriteToFogTask implements Runnable {
                 while(iter.hasNext()){
                     Short shardIndex = iter.next();
                     LOGGER.info("Sending shard "+shardIndex);
-                    metadata.setShardIndex(shardIndex);
-                    WriteResponse response =  fogClient.write(metadata, ByteBuffer.wrap(rse.getShard(shardIndex)), preference);
+                    Metadata newMetadata = metadata.deepCopy();
+                    newMetadata.setShardIndex(shardIndex);
+                    WriteResponse response =  fogClient.write(newMetadata, ByteBuffer.wrap(rse.getShard(shardIndex)), preference);
                     LOGGER.info("Response received from node "+fogInfo+ " is " + response.getStatus() + " rel "+response.getReliability());
                 }
             }

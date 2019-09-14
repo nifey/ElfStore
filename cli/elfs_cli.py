@@ -91,10 +91,10 @@ class elfsCLI(Cmd):
         ## parse the tokens using the previously defined #global parser
         tokens = get_parser.parse_args(line)
         if tokens.v == True:
-            module_EdgeClientCLI_get.get(tokens.start, tokens.end, tokens.edgeId, tokens.edgeIp, tokens.edgePort, tokens.edgeReli, tokens.fogIp, tokens.fogPort,True)
+            module_EdgeClientCLI_get.get(tokens.start, tokens.end, tokens.edgeId, tokens.edgeIp, tokens.edgePort, tokens.edgeReli, tokens.fogIp, tokens.fogPort, tokens.erasureCode, True)
             #del jsonResponse
         else:
-            module_EdgeClientCLI_get.get(tokens.start, tokens.end, tokens.edgeId, tokens.edgeIp, tokens.edgePort, tokens.edgeReli, tokens.fogIp, tokens.fogPort)
+            module_EdgeClientCLI_get.get(tokens.start, tokens.end, tokens.edgeId, tokens.edgeIp, tokens.edgePort, tokens.edgeReli, tokens.fogIp, tokens.fogPort, tokens.erasureCode)
             #del jsonResponse
 
     def do_ls(self,args):
@@ -316,6 +316,7 @@ if __name__ == '__main__':
     get_parser.add_argument("--fogIp", default = FOG_IP)
     get_parser.add_argument("--fogPort", default = str(FOG_PORT))
     get_parser.add_argument("--v","--verbose", action = "store_true")
+    get_parser.add_argument("--erasureCode", action = "store_true")
 
 
     ## Parser for ls command
