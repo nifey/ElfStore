@@ -133,6 +133,8 @@ public final class Constants {
 
 	public static int ERASURE_CODE_SCHEME = 1;
 
+	public static double ERASURE_CODE_EXCESS_RELIABILITY_LIMIT = 0.10;
+
 	public static int DEFAULT_REPLICA_CACHING_TIME = 40;
 
 	public static long interpretByteAsLong(byte b) {

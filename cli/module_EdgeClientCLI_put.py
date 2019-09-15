@@ -391,9 +391,9 @@ class EdgeClient:
 
             self.renew_lease(metaData.streamId, metaData.clientId, metaData.sessionSecret, EXPECTED_LEASE, ESTIMATE_PUT_NEXT, metaData.mbId,setLease)
 
-            timestamp_record_getWrite = str(microbatchID)  +   ","  +   str(-100) +  ", local, "  + "writeErasureCoded ,starttime = " + repr(time.time())  + ","
+            timestamp_record_getWrite = str(microbatchID)  +   ","  + "writeErasureCoded,starttime=" + repr(time.time())  + ","
             result = myClient.writeErasureCoded(metaData, data)
-            timestamp_record_getWrite = timestamp_record_getWrite +"endtime = " + repr(time.time()) +" , " + str(sizeChoice) + '\n'
+            timestamp_record_getWrite = timestamp_record_getWrite +"endtime=" + repr(time.time()) +"," + str(sizeChoice) + '\n'
 
             self.closeSocket(transport)
 

@@ -802,6 +802,78 @@ public class FogServiceHandler implements FogService.Iface {
         return fogsToWrite;
     }
 
+    public WritableFogData identifyFogToPlaceShard(long mbId, long dataLength, double expectedReliability) {
+        LOGGER.info("Trying to find a fog to place a shard of size " + dataLength + " of microbatch " + mbId);
+
+        WritableFogData fogToWrite = new WritableFogData();
+
+        FogStats selfStats = FogStats.createInstance(fog.getCoarseGrainedStats().getInfo());
+        NodeInfoData edgeData;
+        EdgeInfo chosenEdge = null;
+        //Try picking a local edge
+        if (dataLength < selfStats.getMedianStorage() && expectedReliability < selfStats.getMinReliability()) {
+            chosenEdge = getLowReliabilityEdge(selfStats, dataLength * 1024 * 1024, fog.getMbIDLocationMap().get(mbId), mbId);
+            fogToWrite.setPreference(WritePreference.HLH);
+        } else if (dataLength < selfStats.getMedianStorage() && expectedReliability < selfStats.getMedianReliability()) {
+            chosenEdge = getHighReliabilityEdge(selfStats, dataLength * 1024 * 1024, fog.getMbIDLocationMap().get(mbId), mbId);
+            fogToWrite.setPreference(WritePreference.HHL);
+        }
+        if (chosenEdge != null) {
+            edgeData = new NodeInfoData(chosenEdge.getNodeId(), chosenEdge.getNodeIp(), chosenEdge.getPort());
+            fog.getLocalEdgeWritesInProgress().put(mbId, chosenEdge.getNodeId());
+
+            FogInfo fogInfo = fog.getMyFogInfo();
+            NodeInfoData fogNodeInfo = new NodeInfoData(fogInfo.getNodeID(), fogInfo.getNodeIP(), fogInfo.getPort());
+
+            EdgeInfoData myEdgeInfo = new EdgeInfoData();
+            myEdgeInfo.setNodeId(edgeData.getNodeId());
+            myEdgeInfo.setNodeIp(edgeData.getNodeIP());
+            myEdgeInfo.setPort(edgeData.getPort());
+
+            fogToWrite.setReliability(chosenEdge.getStats().getReliability());
+            fogToWrite.setNode(fogNodeInfo);
+            fogToWrite.setEdgeInfo(myEdgeInfo);
+
+            LOGGER.info("The fog data being sent " + fogToWrite.toString());
+            return fogToWrite;
+        }
+
+        LOGGER.info("Unable to pick A local edge");
+        //Try picking a fog with reliability higher than the expected reliability
+        Short chosenFog = (short)-1;
+        Map<Short, FogStats> globalInfo = this.fog.getFogUpdateMap();
+        for(Short fogId: globalInfo.keySet()){
+            FogStats currentFogStats = globalInfo.get(fogId);
+            if(currentFogStats.getMedianStorage() > dataLength){
+                if(currentFogStats.getMinReliability() > expectedReliability){
+                    fogToWrite.setReliability(currentFogStats.getMinReliability());
+                    fogToWrite.setPreference(WritePreference.HLH);
+                } else if(currentFogStats.getMedianStorage() > expectedReliability) {
+                    fogToWrite.setReliability(currentFogStats.getMinReliability());
+                    fogToWrite.setPreference(WritePreference.HHL);
+                }
+                if(chosenFog != -1){
+                    NodeInfoData fogNodeInfo = new NodeInfoData();
+                    NodeInfo fogInfo = currentFogStats.getNodeInfo();
+                    fogNodeInfo.setNodeId(fogInfo.getNodeID());
+                    fogNodeInfo.setNodeIP(fogInfo.getNodeIP());
+                    fogNodeInfo.setPort(fogInfo.getPort());
+                    fogToWrite.setNode(fogNodeInfo);
+                    return fogToWrite;
+                }
+            }
+        }
+
+        //If no fog is chosen still we send the local fog
+        FogInfo fogInfo = fog.getMyFogInfo();
+        NodeInfoData fogNodeInfo = new NodeInfoData(fogInfo.getNodeID(), fogInfo.getNodeIP(), fogInfo.getPort());
+        fogToWrite.setNode(fogNodeInfo);
+        fogToWrite.setPreference(WritePreference.HHL);
+        fogToWrite.setReliability(expectedReliability);
+
+        return fogToWrite;
+    }
+
     /**
      *
      */

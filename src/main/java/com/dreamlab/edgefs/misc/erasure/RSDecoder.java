@@ -61,9 +61,19 @@ public class RSDecoder {
         this.shardCount++;
     }
 
+    public int getShardSize(){ return this.shardSize;}
+
     public byte[] getDataBytes(){ return this.dataBytes; }
 
+    public byte[] getShard(Short shardIndex){ return this.shards[shardIndex];}
+
     public Metadata getMetadata(){ return this.metadata; }
+
+    public Metadata getMetadata(Short shardIndex){
+        Metadata newMetadata = this.metadata.deepCopy();
+        newMetadata.setShardIndex(shardIndex);
+        return newMetadata;
+    }
 
     public boolean receiveAndDecode(List<FindReplica> shardsLocationList){
         LOGGER.info("ShardsLocationList "+ shardsLocationList);

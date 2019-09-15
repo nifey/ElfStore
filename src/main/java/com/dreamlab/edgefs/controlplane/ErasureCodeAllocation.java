@@ -1,5 +1,6 @@
 package com.dreamlab.edgefs.controlplane;
 
+import com.dreamlab.edgefs.misc.Constants;
 import com.dreamlab.edgefs.model.FogStats;
 import com.dreamlab.edgefs.model.NodeInfo;
 import org.slf4j.Logger;
@@ -84,13 +85,134 @@ public class ErasureCodeAllocation {
     // This function returns false if no subsets of reliabilities satisfy the reliability constraint
     public boolean selectFogsForPlacement(){
         switch(this.scheme){
+            case 0:
+                LOGGER.info("Using scheme 0");
+                return this.scheme0();
             case 1:
-                LOGGER.info("Using scheme "+scheme);
+                LOGGER.info("Using scheme 1");
                 return this.scheme1();
+            case 2:
+                LOGGER.info("Using scheme 2 with excessReliabilityLimit = "+ Constants.ERASURE_CODE_EXCESS_RELIABILITY_LIMIT);
+                return this.scheme2(Constants.ERASURE_CODE_EXCESS_RELIABILITY_LIMIT);
         }
         return false;
     }
 
+    //Random scheme
+    private boolean scheme0(){
+        Random random = new Random();
+        List<Short> fogsList = new ArrayList<Short>(globalInfo.keySet());
+        int fogListBound = fogsList.size();
+        int outerIterateLimit = 20;
+        while(!isFeasible && outerIterateLimit-->0) {
+            //Create reliabilities array and calculate reliability until required selection is obtained
+            this.selectedFogs = new HashMap<NodeInfo, Map<String, Integer>>();
+            double[] reliabilities = new double[this.N];
+            int[] fogAssigned = new int[this.N];
+
+            //Pick N edge reliabilities at random
+            Integer count = 0;
+            Integer currentFogIndex;
+            FogStats currentFogStats;
+            Integer countSelected;
+
+            boolean[] fogUsed = new boolean[this.N];
+            Arrays.fill(fogUsed, false);
+
+            double currentFogReliability;
+
+            //If iterateLimit number of iterations complete we return false
+            int iterateLimit = 20;
+            while (count < this.N && (iterateLimit--)>0) {
+                //Randomly select N reliabilities
+                currentFogIndex = random.nextInt(fogListBound);
+                currentFogStats = globalInfo.get(fogsList.get(currentFogIndex));
+                if (currentFogStats.getMedianStorage() < this.shardSize) {
+                    continue;
+                }
+                //We select an edge
+                int reliability = random.nextInt(2);
+                if (reliability == 0) {
+                    //Choose an edge from HH if available
+                    currentFogReliability = currentFogStats.getMedianReliability();
+                    if (currentFogStats.getD() < 1 || fogUsed[currentFogIndex]) {
+                        continue;
+                    }
+                    Map<String, Integer> allocMap = this.selectedFogs.get(currentFogStats.getNodeInfo());
+                    if (allocMap == null) {
+                        allocMap = new HashMap<String, Integer>();
+                        this.selectedFogs.put(currentFogStats.getNodeInfo(), allocMap);
+                    }
+                    //check if the fog is used up
+                    countSelected = 0;
+                    for (String s : allocMap.keySet()) {
+                        countSelected += allocMap.get(s);
+                    }
+                    if (countSelected < this.M) {
+                        if(allocMap.containsKey("HH")) {
+                            allocMap.put("HH", allocMap.get("HH") + 1);
+                        } else {
+                            allocMap.put("HH", 1);
+                        }
+                        reliabilities[count] = currentFogReliability / 100;
+                        fogAssigned[count] = currentFogIndex;
+                        count++;
+                    }
+                    if (countSelected + 1 == this.M) {
+                        fogUsed[currentFogIndex] = true;
+                    }
+                } else {
+                    //Choose an edge from HL if available
+                    currentFogReliability = currentFogStats.getMinReliability();
+                    if (currentFogStats.getB() < 1 || fogUsed[currentFogIndex]) {
+                        continue;
+                    }
+                    Map<String, Integer> allocMap = this.selectedFogs.get(currentFogStats.getNodeInfo());
+                    if (allocMap == null) {
+                        allocMap = new HashMap<String, Integer>();
+                        this.selectedFogs.put(currentFogStats.getNodeInfo(), allocMap);
+                    }
+                    //check if the fog is used up
+                    countSelected = 0;
+                    for (String s : allocMap.keySet()) {
+                        countSelected += allocMap.get(s);
+                    }
+                    if (countSelected < this.M) {
+                        if(allocMap.containsKey("HL")) {
+                            allocMap.put("HL", allocMap.get("HL") + 1);
+                        } else {
+                            allocMap.put("HL", 1);
+                        }
+                        reliabilities[count] = currentFogReliability / 100;
+                        fogAssigned[count] = currentFogIndex;
+                        count++;
+                    }
+                    if (countSelected + 1 == this.M) {
+                        fogUsed[currentFogIndex] = true;
+                    }
+                }
+            }
+
+            //Not enough fogs present
+            if (count < this.N) {
+                return false;
+            }
+
+            //Check reliability
+            double currentReliability = this.calculateReliability(reliabilities);
+            LOGGER.info(selectedFogs.toString());
+            LOGGER.info("Calculated reliability: " + currentReliability);
+            if (currentReliability >= this.requiredReliability) {
+                this.setAchievedReliability(currentReliability);
+                if(isFeasible){
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    //Least reliability first scheme
     private boolean scheme1(){
         //Sorting fogs based on median reliability
         List<Short> fogReliabilityOrder = new ArrayList<Short>(globalInfo.keySet());
@@ -262,4 +384,43 @@ public class ErasureCodeAllocation {
         return true;
     }
 
+    //Greedy search scheme
+    private boolean scheme2(double excessReliabilityLimit){
+        //TODO
+        return true;
+    }
+
+    public static void main(String[] args){
+        //This main function is for debugging the selection schemes
+        //creating dummy globalInfo
+        Map<Short, FogStats> fogStatsMap = new HashMap<Short, FogStats>();
+        FogStats fs1 = new FogStats(1112, 1122, 1145, 77, 85, 92, 4, 4, 4, 4);
+        FogStats fs2 = new FogStats(1112, 1122, 1145, 55, 65, 72, 4, 4, 4, 2);
+        FogStats fs3 = new FogStats(1112, 1122, 1145, 87, 95, 98, 4, 4, 4, 4);
+        FogStats fs4 = new FogStats(1112, 1122, 1145, 67, 83, 90, 4, 4, 4, 1);
+        FogStats fs5 = new FogStats(1112, 1122, 1145, 37, 53, 72, 4, 4, 4, 4);
+        NodeInfo n1 = new NodeInfo("127.0.0.1", (short)1, 1234);
+        NodeInfo n2 = new NodeInfo("127.0.0.1", (short)2, 1234);
+        NodeInfo n3 = new NodeInfo("127.0.0.1", (short)3, 1234);
+        NodeInfo n4 = new NodeInfo("127.0.0.1", (short)4, 1234);
+        NodeInfo n5 = new NodeInfo("127.0.0.1", (short)5, 1234);
+        fs1.setNodeInfo(n1);
+        fs2.setNodeInfo(n2);
+        fs3.setNodeInfo(n3);
+        fs4.setNodeInfo(n4);
+        fs5.setNodeInfo(n5);
+        Short id1 = 1;
+        Short id2 = 2;
+        Short id3 = 3;
+        Short id4 = 4;
+        Short id5 = 5;
+        fogStatsMap.put(id1, fs1);
+        fogStatsMap.put(id2, fs2);
+        fogStatsMap.put(id3, fs3);
+        fogStatsMap.put(id4, fs4);
+        fogStatsMap.put(id5, fs5);
+        ErasureCodeAllocation eca = new ErasureCodeAllocation(9, 6, 0.87, 123 ,fogStatsMap, 1);
+        LOGGER.info("result = "+eca.selectFogsForPlacement());
+        LOGGER.info(eca.getSelectedFogs().toString());
+    }
 }
