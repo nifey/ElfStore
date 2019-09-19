@@ -188,7 +188,7 @@ public class RecoverTask implements Comparable<RecoverTask>, Runnable {
 				Set<Long> set = handler.getFog().getEdgeMicrobatchMap().get(edgeId);
 				set.remove(microBatchId);
 				Map<Short, List<Short>> shardsLocationMap = this.handler.getFog().getMbIDLocationMap().get(microbatchId);
-				shardsLocationList.get(edgeId).clear();
+				shardsLocationMap.remove(edgeId);
 				if (set.size() == 0) {
 					LOGGER.info("All microbatches recovered for EdgeId: " + edgeId + " at " + System.currentTimeMillis());
 				}

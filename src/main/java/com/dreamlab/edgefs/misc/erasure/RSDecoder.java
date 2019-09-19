@@ -40,7 +40,7 @@ public class RSDecoder {
         this.N = N;
         this.K = K;
         this.mbId = mbId;
-        this.shardSize = (short)uncompSize;
+        this.shardSize = (int) uncompSize;
         this.shards = new byte[this.N][shardSize];
         this.shardPresent = new boolean [this.N];
         Arrays.fill(shardPresent, false);
@@ -99,18 +99,18 @@ public class RSDecoder {
             parityExecutor.shutdown();
             while(!parityExecutor.isTerminated()){}
 
-            //Check if K shards are retrieved
-            if (this.shardCount < this.K) {
-                LOGGER.info("Not enough shards present");
-                return false;
-            }
-
             for (int i = 0; i < this.N; i++) {
                 if (!this.shardPresent[i]) {
                     LOGGER.info("Shard "+i + " missing");
                     shards[i] = new byte [shardSize];
                 }
             }
+            //Check if K shards are retrieved
+            if (this.shardCount < this.K) {
+                LOGGER.info("Not enough shards present");
+                return false;
+            }
+
             LOGGER.info("Some data shards missing, recovering microbatch");
             LOGGER.info("Shardsize "+shardSize);
             ReedSolomon reedSolomon = ReedSolomon.create(this.K, this.N - this.K);
@@ -178,7 +178,6 @@ class ReadFromEdgeTask implements Runnable {
                     Metadata metadata = response.getMetadata();
                     rsd.setShard(metadata.getShardIndex(), response.getData());
                     rsd.setMetadata(metadata);
-                } else {
                 }
             }
         } catch (TException e) {
