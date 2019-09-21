@@ -67,18 +67,21 @@ public class RSDecoder {
 
     public byte[] getShard(Short shardIndex){ return this.shards[shardIndex];}
 
+    //This returns metadata for the whole microbatch i.e. it has uncompsize of the whole microbatch
     public Metadata getMetadata(){ return this.metadata; }
 
+    //This returns metadata for  a shard i.e. it has shardIndex set and has uncompsize equal to shard size
     public Metadata getMetadata(Short shardIndex){
         Metadata newMetadata = this.metadata.deepCopy();
         newMetadata.setShardIndex(shardIndex);
+        newMetadata.setUncompSize(shardSize);
         return newMetadata;
     }
 
     public boolean receiveAndDecode(List<FindReplica> shardsLocationList){
         LOGGER.info("ShardsLocationList "+ shardsLocationList);
 
-        ExecutorService dataExecutor = Executors.newFixedThreadPool(4);
+        ExecutorService dataExecutor = Executors.newFixedThreadPool(8);
         //Retrieve data shards from fogs
         Iterator<FindReplica> shardIterator = shardsLocationList.iterator();
         while(shardIterator.hasNext()){

@@ -96,7 +96,7 @@ public class RecoverTask implements Comparable<RecoverTask>, Runnable {
 		}
 
 		if(erasureCoded){
-			LOGGER.info("DEBUG: Erasure coded recovery for microbatchId: "+ microBatchId);
+			LOGGER.info("Erasure coded recovery for microbatchId: "+ microBatchId);
 			//Erasure Coded microbatch recovery
 
             //Find tha shards to recover
@@ -143,7 +143,6 @@ public class RecoverTask implements Comparable<RecoverTask>, Runnable {
 					continue;
 				}
 			}
-			LOGGER.info("DEBUG: compformat="+compFormat+" uncompSize="+uncompSize);
 
 			RSDecoder rsd = new RSDecoder(Constants.ERASURE_CODE_N, Constants.ERASURE_CODE_K, this.microbatchId, compFormat, uncompSize);
 			if(rsd.receiveAndDecode(shardsLocationList)) {
@@ -198,7 +197,7 @@ public class RecoverTask implements Comparable<RecoverTask>, Runnable {
 
 		} else {
 			//Replicated microbatch recovery
-			LOGGER.info("DEBUG: Replicated recovery for microbatchId: " + microBatchId);
+			LOGGER.info("Replicated recovery for microbatchId: " + microBatchId);
 			List<FindReplica> currentReplicas = new ArrayList<>();
 			try {
 				currentReplicas = handler.find(microBatchId, true, true, null);

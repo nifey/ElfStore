@@ -840,7 +840,7 @@ public class FogServiceHandler implements FogService.Iface {
 
         LOGGER.info("Unable to pick A local edge");
         //Try picking a fog with reliability higher than the expected reliability
-        Short chosenFog = (short)-1;
+        boolean fogSelected = false;
         Map<Short, FogStats> globalInfo = this.fog.getFogUpdateMap();
         for(Short fogId: globalInfo.keySet()){
             FogStats currentFogStats = globalInfo.get(fogId);
@@ -848,11 +848,13 @@ public class FogServiceHandler implements FogService.Iface {
                 if(currentFogStats.getMinReliability() > expectedReliability){
                     fogToWrite.setReliability(currentFogStats.getMinReliability());
                     fogToWrite.setPreference(WritePreference.HLH);
+                    fogSelected = true;
                 } else if(currentFogStats.getMedianStorage() > expectedReliability) {
                     fogToWrite.setReliability(currentFogStats.getMinReliability());
                     fogToWrite.setPreference(WritePreference.HHL);
+                    fogSelected = true;
                 }
-                if(chosenFog != -1){
+                if(fogSelected){
                     NodeInfoData fogNodeInfo = new NodeInfoData();
                     NodeInfo fogInfo = currentFogStats.getNodeInfo();
                     fogNodeInfo.setNodeId(fogInfo.getNodeID());

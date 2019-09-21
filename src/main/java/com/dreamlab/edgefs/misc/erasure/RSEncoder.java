@@ -33,7 +33,7 @@ public class RSEncoder {
     private int shardSize;
     final private int BYTES_IN_INT = 4;
     private Logger LOGGER = LoggerFactory.getLogger(RSEncoder.class);
-    private ExecutorService executor = Executors.newFixedThreadPool(5);
+    private ExecutorService executor = Executors.newFixedThreadPool(8);
 
     public RSEncoder(int N, int K, ByteBuffer dataBuffer){
         this.N = N;
