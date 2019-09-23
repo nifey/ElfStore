@@ -393,7 +393,7 @@ class EdgeClient:
 
             timestamp_record_getWrite = str(microbatchID)  +   ","  + "writeErasureCoded,starttime=" + repr(time.time())  + ","
             result = myClient.writeErasureCoded(metaData, data)
-            timestamp_record_getWrite = timestamp_record_getWrite +"endtime=" + repr(time.time()) +"," + str(sizeChoice) + '\n'
+            timestamp_record_getWrite = timestamp_record_getWrite +"endtime=" + repr(time.time()) +"," + str(sizeChoice) + ",writeStatus="+str(result.status)+ '\n'
 
             self.closeSocket(transport)
 
@@ -402,6 +402,7 @@ class EdgeClient:
             myLogs.close()
 
             response = self.increment_block_count(metaData,setLease)
+            return int(result.status)
             if response.code == -1:
                 #this blockId is already written
                 #In our designed experiment, different clients are writing to different regions so this
@@ -683,7 +684,7 @@ def put(path,streamId,start,metadataLocation,fogIp,fogPort,edgeId,clientId,split
 
             ## Get the file size
             fileInfo = os.stat(PATH)
-            fileSizeMB = fileInfo.st_size / 10000000 ## in MB
+            fileSizeMB = fileInfo.st_size / (1024*1024) ## in MB
             byteArray.append(file.read())
             file.close()
             #print "appended ",len(byteArray[len(byteArray)-1]),"number of bytes" + str(SPLIT_CHOICE)
@@ -702,6 +703,7 @@ def put(path,streamId,start,metadataLocation,fogIp,fogPort,edgeId,clientId,split
             else:
                 print(response)
                 print("not successfull")
+            return response
 
 
         else:
@@ -734,6 +736,7 @@ def put(path,streamId,start,metadataLocation,fogIp,fogPort,edgeId,clientId,split
             else:
                 print(response)
                 print("not successfull")
+            return response
 
     else:
         ## This means that the PATH represents a directory
@@ -772,6 +775,7 @@ def put(path,streamId,start,metadataLocation,fogIp,fogPort,edgeId,clientId,split
             else:
                 print(response)
                 print("not successfull")
+            return response
 
         else:
             byteArray = []
@@ -807,3 +811,4 @@ def put(path,streamId,start,metadataLocation,fogIp,fogPort,edgeId,clientId,split
             else:
                 print(response)
                 print("not successfull")
+            return response

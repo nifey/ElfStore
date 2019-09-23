@@ -2238,7 +2238,7 @@ public class FogServiceHandler implements FogService.Iface {
         ErasureCodeAllocation eca = new ErasureCodeAllocation(Constants.ERASURE_CODE_N, Constants.ERASURE_CODE_K, expectedReliability, decodedLength, globalInfo, Constants.ERASURE_CODE_SCHEME);
         LOGGER.info("MicrobatchId : " + metadata.getMbId() + ", ErasureCodeAllocation.selectFogsForPlacement, startTime=" + System.currentTimeMillis());
         if(eca.selectFogsForPlacement()){
-            LOGGER.info("MicrobatchId : " + metadata.getMbId() + ", Achieved reliability = " + eca.getAchievedReliability());
+            LOGGER.info("MicrobatchId : " + metadata.getMbId() + ", Allocation Success, Achieved reliability = " + eca.getAchievedReliability());
             LOGGER.info("MicrobatchId : " + metadata.getMbId() + ", ErasureCodeAllocation.selectFogsForPlacement, endTime=" + System.currentTimeMillis());
 
             Map<NodeInfo, Map<String, Integer>> selectedFogs = eca.getSelectedFogs();
@@ -2248,13 +2248,14 @@ public class FogServiceHandler implements FogService.Iface {
             encoder.encodeAndSend(metadata, selectedFogs);
 
         } else {
-            LOGGER.info("MicrobatchId : " + metadata.getMbId() + ", Achieved reliability = " + eca.getAchievedReliability());
+            LOGGER.info("MicrobatchId : " + metadata.getMbId() + ", Allocation Failure, Achieved reliability = " + eca.getAchievedReliability());
             LOGGER.info("MicrobatchId : " + metadata.getMbId() + ", ErasureCodeAllocation.selectFogsForPlacement, endTime=" + System.currentTimeMillis());
             LOGGER.info("MicrobatchId : "+ metadata.getMbId() + ", Cannot find edges that satisfy reliability constraint");
             return wrResponse;
         }
         LOGGER.info("MicrobatchId : " + metadata.getMbId() + ", writeErasureCoded, endTime=" + System.currentTimeMillis());
 
+        wrResponse.setStatus(Constants.SUCCESS);
         return wrResponse;
     }
 

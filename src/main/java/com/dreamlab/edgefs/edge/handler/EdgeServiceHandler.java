@@ -64,7 +64,7 @@ public class EdgeServiceHandler implements EdgeService.Iface {
 				//FileUtils.writeByteArrayToFile(myFile, mbDataInBytesArray);
 
 				//ISHAN : Storage to be modified
-				int mbSize = mbSizeWritten/(1000 * 1000);
+				long mbSize = (long)mbSizeWritten;
 				edge.setStorage(edge.getStorage() - mbSize);
 
 				// Metadata

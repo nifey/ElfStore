@@ -30,6 +30,7 @@ public class ErasureCodeAllocation {
         this.M = n-k;
         this.requiredReliability = requiredReliability;
         this.shardSize = length/k;
+        this.shardSize = this.shardSize/(1024*1024);
         this.globalInfo = globalInfo;
         this.scheme = scheme;
         this.selectedFogs = new HashMap<NodeInfo, Map<String, Integer>>();

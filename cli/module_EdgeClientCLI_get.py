@@ -226,9 +226,6 @@ class EdgeClient:
                  elif response.status==1:
                      #self.formulateJsonResponse(microbatchId,response)
                      bytesRead = len(response.data)
-                     f = open("getFile", "wb")
-                     f.write(response.data)
-                     f.close()
                      print("Local Read ",len(response.data)," number of bytes")
                      print("metadata also read ",response.metadata)
                      return 1,bytesRead #successful read
@@ -264,9 +261,6 @@ class EdgeClient:
                  if(response.status == 1):
                      #self.formulateJsonResponse(microbatchId,response)
                      bytesRead = len(response.data)
-                     f = open("getFile", "wb")
-                     f.write(response.data)
-                     f.close()
                      print("Fog Amount of bytes read ",len(response.data))
                      return 1,bytesRead #successful read
                  else:
@@ -304,9 +298,6 @@ class EdgeClient:
 
         elif response.status==1:
             bytesRead = len(response.data)
-            f = open("getFile", "wb")
-            f.write(response.data)
-            f.close()
             print("Local Read ",len(response.data)," number of bytes")
             print("metadata also read ",response.metadata)
             return 1,bytesRead #successful read

@@ -35,7 +35,7 @@ public class Edge {
 
 	private long lastStatsSentTime = Long.MIN_VALUE;
 	
-	private long storage = 16000;
+	private long storage = 314572800; //300 MB in bytes
 	
 	public Edge() {
 		super();
@@ -60,6 +60,7 @@ public class Edge {
 
 	public void setStorage(long storage) {
 		this.storage = storage;
+		LOGGER.info("DEBUG: Setting storage to "+storage);
 	}
 
 	public short getNodeId() {
@@ -200,7 +201,7 @@ public class Edge {
 	private byte getSystemFreeSpaceEncoded()
 	{
 		File myFile = new File("/");
-		long freeSpace = myFile.getFreeSpace()/(1024 * 1024);
+		long freeSpace = this.storage/(1024*1024);
 		LOGGER.info("The total free space available is (in MB) " + freeSpace);
 		byte encoded = Constants.encodeLongAsByte(freeSpace);
 		LOGGER.info("The encoded space is " + encoded);

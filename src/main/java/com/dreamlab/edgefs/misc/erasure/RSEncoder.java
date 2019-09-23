@@ -54,7 +54,7 @@ public class RSEncoder {
     public void encodeAndSend(Metadata metadata, Map<NodeInfo, Map<String, Integer>> selectedFogs){
 
         LOGGER.info("The selected fog information is "+ selectedFogs);
-        LOGGER.info("Starting to encode data, startTime="+System.currentTimeMillis());
+        LOGGER.info("MicrobatchId : "+metadata.getMbId()+" Starting to encode data, startTime="+System.currentTimeMillis());
 
         for (int i = 0; i < this.K; i++) {
             System.arraycopy(allBytes, i * shardSize, shards[i], 0, shardSize);
@@ -65,9 +65,9 @@ public class RSEncoder {
 
         LOGGER.info("File size read in shard "+ByteBuffer.wrap(shards[0]).getInt());
         LOGGER.info("shard size "+shardSize);
-        LOGGER.info("Finished encoding data, endTime="+System.currentTimeMillis());
+        LOGGER.info("MicrobatchId : "+metadata.getMbId()+" Finished encoding data, endTime="+System.currentTimeMillis());
 
-        LOGGER.info("Starting to send shards to other fogs, startTime=" + System.currentTimeMillis());
+        LOGGER.info("MicrobatchId : "+metadata.getMbId()+" Starting to send shards to other fogs, startTime=" + System.currentTimeMillis());
         //Send shards to fogs to be written
         Iterator<NodeInfo> fogIterator = selectedFogs.keySet().iterator();
         for(Short shardIndex=0; shardIndex < this.N;) {
@@ -104,7 +104,7 @@ public class RSEncoder {
         executor.shutdown();
         while(!executor.isTerminated()){}
 
-        LOGGER.info("Finished sending shards to other fogs, endTime=" + System.currentTimeMillis());
+        LOGGER.info("MicrobatchId : "+metadata.getMbId()+" Finished sending shards to other fogs, endTime=" + System.currentTimeMillis());
     }
 }
 
